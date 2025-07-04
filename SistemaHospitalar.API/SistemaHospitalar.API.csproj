@@ -22,4 +22,8 @@
     <ProjectReference Include="..\SistemaHospitalar.Infra\SistemaHospitalar.Infra.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\ImagensPerfis\" />
+  </ItemGroup>
+
 </Project>

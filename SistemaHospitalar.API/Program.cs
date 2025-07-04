@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SistemaEstoqueBackend.Core.Entities;
+using SistemaHospitalar.Application.Middlewares;
+using SistemaHospitalar.Application.Repositories.PacienteRepositories;
 using SistemaHospitalar.Infra;
 using System.Text;
 
@@ -17,6 +19,10 @@ namespace SistemaHospitalar.API
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+
+            #region Repositories
+            builder.Services.AddScoped<IPacienteRepository, PacienteRepository>();
+            #endregion
 
             builder.Services.AddCors(options =>
             {
@@ -39,7 +45,7 @@ namespace SistemaHospitalar.API
             })
             .AddJwtBearer(options =>
             {
-                options.RequireHttpsMetadata = false; // use true em produção
+                options.RequireHttpsMetadata = false;
                 options.SaveToken = true;
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
@@ -59,6 +65,8 @@ namespace SistemaHospitalar.API
 
             var app = builder.Build();
 
+            app.UseMiddleware<ExceptionMiddleware>();
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
@@ -68,6 +76,8 @@ namespace SistemaHospitalar.API
             app.UseCors("AllowAll");
 
             app.UseHttpsRedirection();
+
+            app.UseStaticFiles();
 
             app.UseAuthorization();
 
