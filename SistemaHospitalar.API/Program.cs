@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using SistemaEstoqueBackend.Core.Entities;
 using SistemaHospitalar.Application.Middlewares;
 using SistemaHospitalar.Application.Repositories.PacienteRepositories;
+using SistemaHospitalar.Application.Repositories.UsuarioRepositories;
 using SistemaHospitalar.Infra;
 using System.Text;
 
@@ -22,6 +23,7 @@ namespace SistemaHospitalar.API
 
             #region Repositories
             builder.Services.AddScoped<IPacienteRepository, PacienteRepository>();
+            builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
             #endregion
 
             builder.Services.AddCors(options =>

@@ -10,6 +10,11 @@ using System.Security.Claims;
 using System.Text;
 using SistemaHospitalar.Core.Entities;
 using SistemaEstoqueBackend.Application.InputModels.Usuario;
+using SistemaHospitalar.Core.Models;
+using SistemaHospitalar.Application.ViewModels.Usuario;
+using SistemaHospitalar.Application.Repositories.UsuarioRepositories;
+using SistemaHospitalar.Core.Exceptions.UsuarioException;
+using System.Threading.Tasks;
 
 namespace SistemaEstoqueBackend.API.Controllers
 {
@@ -19,59 +24,72 @@ namespace SistemaEstoqueBackend.API.Controllers
     {
         private readonly JwtSettings _jwtSettings;
         private readonly HospitalDbContext _context;
+        private readonly IUsuarioRepository _repository;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IOptions<JwtSettings> jwtOptions, HospitalDbContext context)
+
+        public AuthController(IOptions<JwtSettings> jwtOptions, HospitalDbContext context, IUsuarioRepository repository, ILogger<AuthController> logger)
         {
             _jwtSettings = jwtOptions.Value;
             _context = context;
+            _repository = repository;
+            _logger = logger;
         }
 
         [HttpPost("registrar")]
         public async Task<IActionResult> Registrar(CreateUsuarioDTO dto)
         {
-            if (_context.Usuarios.Any(u => u.Email == dto.Email))
-                return BadRequest("Email já registrado");
-
-            var usuario = new Usuario
+            try
             {
-                NomeCompleto = dto.NomeCompleto,
-                Email = dto.Email,
-                SenhaHash = dto.SenhaHash,
-                Telefone = dto.Telefone,
-                DiretorioImagem = dto.DiretorioImagem,
-                CriadoEm = DateTime.Now,
-                Role = dto.Role
-            };
-
-            _context.Usuarios.Add(usuario);
-            await _context.SaveChangesAsync();
-
-            return Ok("Usuário registrado com sucesso");
+                var data = await _repository.Create(dto);
+                return Ok(new ApiResponse<UsuarioDetailsDTO> 
+                {
+                    Success = true,
+                    Mensagem = null,
+                    Data = data
+                });
+            }catch(EmailJaRegistradoException ex)
+            {
+                _logger.LogError(ex, $"Erro: Esse e-mail já está em uso: {dto.Email}");
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Mensagem = "E-mail já em uso",
+                    Data = null
+                });
+            }
         }
 
         [HttpPost("login")]
-        public IActionResult Login(LoginUsuarioDTO dto)
+        public async Task<IActionResult> Login(LoginUsuarioDTO dto)
         {
-            var usuario = _context.Usuarios
-                .FirstOrDefault(u => u.Email == dto.Email && u.SenhaHash == dto.Senha);
-
-            if (usuario == null)
-                return Unauthorized();
-
-            var token = GerarToken(usuario);
-
-            return Ok(new
+            try
             {
-                token,
-                usuario = new { usuario.Id, usuario.NomeCompleto, usuario.Email, usuario.Role }
-            });
+                var data = await _repository.Login(dto);
+                var token = GerarToken(data);
+                return Ok(new ApiResponse<UsuarioDetailsDTO>
+                {
+                    Success = true,
+                    Mensagem = "Login efetuado com sucesso",
+                    Data = data
+                });
+            }catch(UsuarioNaoEncontradoLoginException ex)
+            {
+                _logger.LogError(ex, $"Erro: Erro ao efetuar login com e-mail de usuário: {dto.Email}");
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Mensagem = "E-mail ou senha inválidos",
+                    Data = null
+                });
+            }            
         }
 
-        private string GerarToken(Usuario usuario)
+        private string GerarToken(UsuarioDetailsDTO usuario)
         {
             var claims = new[]
             {
-            new Claim(ClaimTypes.Name, usuario.NomeCompleto),
+            new Claim(ClaimTypes.Name, usuario.Nome),
             new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
             new Claim(ClaimTypes.Role, usuario.Role)
         };
